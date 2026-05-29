@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vérificateur de Commandes - Affiches & Étiquettes</title>
+    <title>LeBonCode - Scanner Universel</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
             --primary: #3498db;
@@ -45,7 +46,7 @@
         .steps-container {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .step {
@@ -57,7 +58,6 @@
             border-radius: 8px;
             margin: 0 5px;
             font-weight: bold;
-            transition: all 0.3s ease;
         }
 
         .step.active {
@@ -72,15 +72,38 @@
             color: var(--success);
         }
 
+        /* Zone du scanner */
         #reader {
             width: 100%;
             border-radius: 8px;
             overflow: hidden;
             border: none !important;
+            background: black;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: bold;
+            color: #7f8c8d;
+            margin: 15px 0 5px 0;
+        }
+
+        .ocr-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            display: none; /* Apparaît quand le scanner est prêt */
         }
 
         .result-box {
-            margin-top: 20px;
+            margin-top: 15px;
             padding: 15px;
             border-radius: 8px;
             text-align: center;
@@ -89,68 +112,34 @@
             display: none;
         }
 
-        .result-box.match {
-            display: block;
-            background-color: var(--success);
-            color: white;
-            animation: pulse 0.5s ease;
-        }
-
-        .result-box.mismatch {
-            display: block;
-            background-color: var(--danger);
-            color: white;
-            animation: shake 0.5s ease;
-        }
+        .result-box.match { display: block; background-color: var(--success); color: white; }
+        .result-box.mismatch { display: block; background-color: var(--danger); color: white; }
 
         .values-display {
             margin-top: 15px;
             background: #f8f9fa;
             padding: 10px;
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 1rem;
         }
 
-        .values-display p {
-            margin: 5px 0;
-        }
-
-        button {
+        .btn-reset {
             width: 100%;
             padding: 12px;
-            background-color: var(--primary);
+            background-color: var(--dark);
             color: white;
             border: none;
             border-radius: 8px;
             font-size: 1rem;
-            font-weight: bold;
             cursor: pointer;
             margin-top: 15px;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background-color: #2980b9;
-        }
-
-        /* Animations */
-        @keyframes pulse {
-            0% { transform: scale(0.95); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Contrôle Étiquetage</h1>
+    <h1>LeBonCode</h1>
 
     <div class="steps-container">
         <div id="step1" class="step active">1. AFFICHE</div>
@@ -159,14 +148,18 @@
 
     <div id="reader"></div>
 
+    <div id="status">Initialisation de la caméra...</div>
+
+    <button id="btn-ocr" class="ocr-btn" onclick="scannerChiffresSeuls()">🔢 LIRE COMME CHIFFRES SEULS</button>
+
     <div class="values-display">
-        <p><strong>Code Affiche :</strong> <span id="code-affiche-val">-</span></p>
-        <p><strong>Code Étiquette :</strong> <span id="code-etiquette-val">-</span></p>
+        <p><strong>Numéro Affiche :</strong> <span id="code-affiche-val">-</span></p>
+        <p><strong>Numéro Étiquette :</strong> <span id="code-etiquette-val">-</span></p>
     </div>
 
     <div id="result" class="result-box"></div>
 
-    <button id="btn-reset" onclick="resetScanner()">Recommencer / Suivant</button>
+    <button class="btn-reset" onclick="resetScanner()">Suivant / Réinitialiser</button>
 </div>
 
 <script>
@@ -174,87 +167,120 @@
     let codeEtiquette = null;
     let html5QrcodeScanner = null;
 
-    // Configuration et démarrage du scanner au chargement
     function startScanner() {
         html5QrcodeScanner = new Html5QrcodeScanner(
             "reader", 
             { 
-                fps: 10, 
-                qrbox: { width: 250, height: 150 }, // Box adaptée aux codes-barres allongés
+                fps: 15, 
+                qrbox: function(width, height) {
+                    // Box large et fine idéale pour les codes-barres de produits
+                    return { width: Math.floor(width * 0.8), height: Math.floor(height * 0.4) };
+                },
                 rememberLastUsedCamera: true
             }
         );
-        html5QrcodeScanner.render(onScanSuccess);
+        
+        html5QrcodeScanner.render(onScanSuccess, onScanError);
+        
+        // On affiche le bouton de secours une fois chargé
+        setTimeout(() => {
+            document.getElementById('btn-ocr').style.display = 'block';
+            document.getElementById('status').innerText = "Visez un Code-barres/QR Code OU utilisez le bouton orange ci-dessous.";
+        }, 1000);
     }
 
-    // Fonction appelée dès qu'un code est détecté
-    function onScanSuccess(decodedText, decodedResult) {
-        // Étape 1 : Scan de l'affiche
-        if (!codeAffiche) {
-            codeAffiche = decodedText.trim();
-            document.getElementById('code-affiche-val').innerText = codeAffiche;
-            
-            // Maj Visuelle Étapes
-            document.getElementById('step1').classList.remove('active');
-            document.getElementById('step1').classList.add('completed');
-            document.getElementById('step2').classList.add('active');
-            
-            // Émettre un petit bip sonore ou vibration si supporté
-            vibratePhone(100);
+    // Cas 1 : Détection automatique de Code-barres ou QR Code
+    function onScanSuccess(decodedText) {
+        let codeNettoye = decodedText.trim().replace(/[^0-9]/g, ""); // On ne garde que les chiffres pour être sûr
+        enregistrerCode(codeNettoye);
+    }
+
+    function onScanError(err) {
+        // Mode silencieux pour éviter de spammer la console pendant la recherche
+    }
+
+    // Cas 2 : L'utilisateur clique car ce ne sont que des chiffres écrits en texte
+    async function scannerChiffresSeuls() {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerText = "Analyse de l'image... Patientez 2 secondes...";
+        
+        // On récupère le flux vidéo actif du scanner pour prendre une photo
+        const videoElement = document.querySelector('#reader video');
+        if (!videoElement) {
+            statusDiv.innerText = "Erreur : Caméra non détectée.";
             return;
         }
 
-        // Étape 2 : Scan de l'étiquette
-        if (codeAffiche && !codeEtiquette) {
-            codeEtiquette = decodedText.trim();
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+        // Analyse OCR avec Tesseract
+        try {
+            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+            const chiffresTrouves = text.replace(/[^0-9]/g, ""); // Filtre pour ne garder que les numéros
+
+            if (!chiffresTrouves || chiffresTrouves.length < 2) {
+                statusDiv.innerText = "❌ Aucun numéro lu. Rapprochez-vous et réessayez.";
+                return;
+            }
+
+            statusDiv.innerText = "Numéro détecté avec succès !";
+            enregistrerCode(chiffresTrouves);
+        } catch (error) {
+            statusDiv.innerText = "Erreur lors de la lecture des chiffres.";
+        }
+    }
+
+    // Logique commune d'enregistrement
+    function enregistrerCode(code) {
+        if (!codeAffiche) {
+            codeAffiche = code;
+            document.getElementById('code-affiche-val').innerText = codeAffiche;
+            document.getElementById('step1').className = "step completed";
+            document.getElementById('step2').className = "step active";
+            document.getElementById('status').innerText = "Affiche validée. Scannez maintenant l'étiquette.";
+            vibrate(100);
+        } else if (codeAffiche && !codeEtiquette) {
+            codeEtiquette = code;
             document.getElementById('code-etiquette-val').innerText = codeEtiquette;
-            
-            document.getElementById('step2').classList.add('completed');
-            
-            vibratePhone(100);
+            document.getElementById('step2').className = "step completed";
+            vibrate(100);
             verifierCodes();
         }
     }
 
-    // Vérification de la correspondance
     function verifierCodes() {
         const resultDiv = document.getElementById('result');
-        
         if (codeAffiche === codeEtiquette) {
-            resultDiv.innerText = "✅ VALIDE : C'est la bonne étiquette !";
+            resultDiv.innerText = "✅ VALIDE : Les numéros correspondent !";
             resultDiv.className = "result-box match";
-            vibratePhone([100, 50, 100]); // Double vibration pour le succès
+            vibrate([100, 50, 100]);
         } else {
-            resultDiv.innerText = "❌ ERREUR : Les codes ne correspondent pas !";
+            resultDiv.innerText = "❌ ERREUR : Les numéros sont différents !";
             resultDiv.className = "result-box mismatch";
-            vibratePhone([500]); // Longue vibration pour l'erreur
+            vibrate([500]);
         }
+        document.getElementById('status').innerText = "Vérification terminée.";
     }
 
-    // Réinitialisation pour la commande suivante
     function resetScanner() {
         codeAffiche = null;
         codeEtiquette = null;
-        
         document.getElementById('code-affiche-val').innerText = "-";
         document.getElementById('code-etiquette-val').innerText = "-";
-        
         document.getElementById('step1').className = "step active";
         document.getElementById('step2').className = "step";
-        
-        const resultDiv = document.getElementById('result');
-        resultDiv.className = "result-box";
-        resultDiv.innerText = "";
+        document.getElementById('result').className = "result-box";
+        document.getElementById('status').innerText = "Visez un Code-barres/QR Code OU utilisez le bouton orange.";
     }
 
-    // Optionnel : Fait vibrer le téléphone de l'utilisateur (si Android/Chrome)
-    function vibratePhone(pattern) {
-        if (navigator.vibrate) {
-            navigator.vibrate(pattern);
-        }
+    function vibrate(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
     }
 
-    // Lancement du scanner au chargement de la page
     window.addEventListener('DOMContentLoaded', startScanner);
 </script>
 
