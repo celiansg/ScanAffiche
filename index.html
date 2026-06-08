@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LeBonCode - 100% Automatique</title>
+    <title>LeBonCode - AFLPH Coloz</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
@@ -109,14 +109,13 @@
 
         #status {
             text-align: center;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--text-dark);
             margin: 12px 0;
-            font-weight: bold;
+            font-weight: 600;
             background: var(--magenta-light);
-            padding: 10px;
+            padding: 8px;
             border-radius: 8px;
-            border-left: 4px solid var(--magenta);
         }
 
         .btn {
@@ -124,7 +123,7 @@
             padding: 16px;
             border: none;
             border-radius: 12px;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
             transition: transform 0.1s;
@@ -135,8 +134,14 @@
         .btn-next {
             background: var(--magenta);
             color: white;
-            display: none; /* Apparaît pour valider le passage à l'étape 2 */
-            margin-bottom: 10px;
+            display: none; 
+            font-size: 1.1rem;
+        }
+
+        .btn-ocr {
+            background-color: var(--text-dark);
+            color: white;
+            margin-top: 5px;
         }
 
         .btn-reset {
@@ -216,9 +221,10 @@
         <div id="reader"></div>
     </div>
 
-    <div id="status">Démarrage de la détection automatique...</div>
+    <div id="status">Chargement...</div>
 
-    <button id="btn-next" class="btn btn-next" onclick="passerALEtape2()">➡️ APPUYER POUR PASSER À L'ÉTIQUETTE</button>
+    <button id="btn-next" class="btn btn-next" onclick="passerALEtape2()">➡️ PASSER À L'ÉTIQUETTE</button>
+    <button id="btn-ocr" class="btn btn-ocr" onclick="extraireCodeProduction()">🔢 ANALYSER LE CODE DE PRODUCTION</button>
 
     <div class="summary-box">
         <div class="summary-row">
@@ -241,7 +247,6 @@
     let codeEtiquette = null;
     let html5QrcodeScanner = null;
     let scanEnPause = false;
-    let ocrInterval = null;
 
     function initScanner() {
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
@@ -249,37 +254,25 @@
             qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.floor(h * 0.4) }),
             rememberLastUsedCamera: true
         });
-        
         html5QrcodeScanner.render(onScanSuccess, () => {});
-        
-        // Lance la boucle automatique d'analyse de texte (OCR) toutes les 1000ms (1 seconde)
-        ocrInterval = setInterval(analyseAutomatiqueFlux, 1000);
-        
-        setTimeout(() => { document.getElementById('status').innerText = "🔍 Analyse en cours... Cadrez le code de l'AFFICHE"; }, 800);
+        setTimeout(() => { document.getElementById('status').innerText = "Cadrez le code de l'AFFICHE"; }, 800);
     }
 
-    // Détection si c'est un QR-code / Code-barres classique
+    // Si jamais c'est un QR code généré qui contient le texte
     function onScanSuccess(text) {
         if (scanEnPause) return;
-        
-        const regexGUID = /[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}/i;
-        const match = text.toUpperCase().match(regexGUID);
-        
-        if (match) {
-            filtrerEtEnregistrer(match[0]);
-        } else if (text.includes('-')) {
-            filtrerEtEnregistrer(text);
-        }
+        filtrerEtEnregistrer(text);
     }
 
-    // Détection automatique en tâche de fond pour le texte brut/chiffres
-    async function analyseAutomatiqueFlux() {
+    // Fonction principale de lecture OCR pour tes images
+    async function extraireCodeProduction() {
         if (scanEnPause) return;
+        const status = document.getElementById('status');
+        status.innerText = "Analyse ciblée du code... Ne bougez pas...";
         
         const video = document.querySelector('#reader video');
-        if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+        if (!video) return;
 
-        // Capture d'image invisible depuis la caméra
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -287,24 +280,29 @@
 
         try {
             const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+            console.log("Texte brut détecté : ", text);
             
-            // Recherche de la structure du code de production (GUID)
+            // REGEX : Recherche un format type GUID (Lettres/chiffres séparés par des tirets)
+            // Trouve précisément la structure "865DCDAF-ADB6-..." au milieu du reste
             const regexGUID = /[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}/i;
             const match = text.toUpperCase().match(regexGUID);
 
             if (match) {
                 filtrerEtEnregistrer(match[0]);
             } else {
-                // Recherche de secours si le code est un peu tronqué
+                // Secours : Si le code est tronqué sur le bord (comme sur ton affiche photo 1)
+                // On cherche n'importe quelle suite de blocs alphanumériques avec tirets
                 const regexSecours = /[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+/i;
                 const matchSecours = text.toUpperCase().match(regexSecours);
                 
                 if (matchSecours) {
                     filtrerEtEnregistrer(matchSecours[0]);
+                } else {
+                    status.innerText = "❌ Code introuvable. Recentrez sur la ligne de tirets.";
                 }
             }
         } catch (e) {
-            console.log("Erreur analyse automatique frame");
+            status.innerText = "Erreur de traitement d'image.";
         }
     }
 
@@ -315,34 +313,36 @@
             codeAffiche = codeNettoye;
             document.getElementById('val-affiche').innerText = codeAffiche;
             document.getElementById('step1').className = "step completed";
-            
-            // On stoppe les analyses pour laisser le temps de changer de support
             scanEnPause = true;
             
+            document.getElementById('btn-ocr').style.display = 'none';
             document.getElementById('btn-next').style.display = 'block';
-            document.getElementById('status').innerText = "🎯 Affiche capturée ! Mettez-vous sur l'étiquette puis cliquez sur le bouton.";
+            document.getElementById('status').innerText = "Affiche OK. Cadrez le code de l'étiquette.";
             vibrate(100);
         } else if (codeAffiche && !codeEtiquette) {
             codeEtiquette = codeNettoye;
             document.getElementById('val-etiquette').innerText = codeEtiquette;
             document.getElementById('step2').className = "step completed";
-            
             scanEnPause = true;
+            
+            document.getElementById('btn-ocr').style.display = 'none';
             vibrate(100);
             validerChoc();
         }
     }
 
     function passerALEtape2() {
-        scanEnPause = false; // Relance la détection automatique
+        scanEnPause = false;
         document.getElementById('step2').className = "step active";
         document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('status').innerText = "🔍 Analyse en cours... Cadrez le code de l'ÉTIQUETTE";
+        document.getElementById('btn-ocr').style.display = 'block';
+        document.getElementById('status').innerText = "Visez le code de l'ÉTIQUETTE";
     }
 
     function validerChoc() {
         const res = document.getElementById('result');
         
+        // Comme le code de l'affiche peut être tronqué sur la photo, on vérifie si l'un est inclus dans l'autre
         if (codeAffiche === codeEtiquette || codeEtiquette.includes(codeAffiche) || codeAffiche.includes(codeEtiquette)) {
             res.innerText = "✅ VALIDE : Les codes correspondent !";
             res.className = "result match";
@@ -365,7 +365,8 @@
         document.getElementById('step2').className = "step";
         document.getElementById('result').className = "result";
         document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('status').innerText = "🔍 Analyse en cours... Cadrez le code de l'AFFICHE";
+        document.getElementById('btn-ocr').style.display = 'block';
+        document.getElementById('status').innerText = "Visez le code de l'AFFICHE";
     }
 
     function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
