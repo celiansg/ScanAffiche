@@ -8,21 +8,21 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
-            /* Nouvelle palette Magenta 100% */
+            /* Palette Monochrome Magenta 100% */
             --magenta: #ff00ff;
             --magenta-gradient: linear-gradient(160deg, #df22ca 0%, #ff00ff 100%);
             --magenta-light: #f9dcee;
             --bg-global: #fce8f3;
             --bg-app: #ffffff;
-            --bg-gray: #fdf5f9; /* Utilisé pour les zones grisées/rosées */
+            --bg-gray: #fdf5f9; 
             --text-dark: #3a003a;
             
-            /* Couleurs d'état */
+            /* Couleurs d'état adaptées */
             --success-bg: #e3f9ec;
-            --success-text: #3cd371;
+            --success-text: #2ecc71;
             --danger-bg: #ffe6e6;
             --danger-text: #ff4d4d;
-            --warning: #7a007a; /* Aubergine pour le bouton OCR */
+            --warning: #7a007a; 
         }
 
         body {
@@ -48,7 +48,6 @@
             box-sizing: border-box;
         }
 
-        /* En-tête type Dashboard */
         .header {
             display: flex;
             align-items: center;
@@ -76,7 +75,6 @@
             box-shadow: 0 4px 10px rgba(255, 0, 255, 0.2);
         }
 
-        /* Étapes de scan épurées (Style Badges d'état) */
         .steps {
             display: flex;
             gap: 10px;
@@ -106,7 +104,6 @@
             color: var(--success-text);
         }
 
-        /* Box Caméra */
         #camera-wrapper {
             width: 100%;
             border-radius: 16px;
@@ -130,7 +127,6 @@
             font-weight: 600;
         }
 
-        /* Boutons d'Action */
         .btn {
             width: 100%;
             padding: 16px;
@@ -147,7 +143,7 @@
         .btn-next {
             background: var(--magenta-gradient);
             color: white;
-            display: none; /* Masqué par défaut */
+            display: none; 
             font-size: 1.1rem;
             box-shadow: 0 8px 20px rgba(255, 0, 255, 0.25);
         }
@@ -168,7 +164,6 @@
             background-color: #f5eaf0;
         }
 
-        /* Récapitulatif des codes saisis */
         .summary-box {
             margin-top: 15px;
             background: var(--bg-gray);
@@ -196,7 +191,6 @@
             color: var(--magenta);
         }
 
-        /* Verdicts */
         .result {
             margin-top: 15px;
             padding: 15px;
@@ -242,7 +236,7 @@
     <div id="status">Chargement...</div>
 
     <button id="btn-next" class="btn btn-next" onclick="passerALEtape2()">➡️ PASSER À L'ÉTIQUETTE</button>
-    <button id="btn-ocr" class="btn btn-ocr" onclick="lireChiffresSeuls()">🔢 LIRE COMME CHIFFRES SEULS</button>
+    <button id="btn-ocr" class="btn btn-ocr" onclick="lireTexteEtChiffres()">🔢 LIRE COMME TEXTE / CHIFFRES</button>
 
     <div class="summary-box">
         <div class="summary-row">
@@ -276,15 +270,21 @@
         setTimeout(() => { document.getElementById('status').innerText = "Visez le code de l'AFFICHE"; }, 800);
     }
 
+    // Détection automatique Code-barre ou QR Code (Alphanumérique)
     function onScanSuccess(text) {
         if (scanEnPause) return;
-        enregistrerCode(text.trim().replace(/[^0-9]/g, ""));
+        // Supprime uniquement les caractères spéciaux, garde les lettres et chiffres
+        let codeNettoye = text.trim().replace(/[^a-zA-Z0-9-]/g, "");
+        if (codeNettoye) {
+            enregistrerCode(codeNettoye);
+        }
     }
 
-    async function lireChiffresSeuls() {
+    // Analyse OCR manuelle (Texte imprimé et Chiffres mélangés)
+    async function lireTexteEtChiffres() {
         if (scanEnPause) return;
         const status = document.getElementById('status');
-        status.innerText = "Analyse OCR... Restez immobile...";
+        status.innerText = "Analyse de l'image... Restez immobile...";
         
         const video = document.querySelector('#reader video');
         if (!video) return;
@@ -296,12 +296,14 @@
 
         try {
             const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-            const num = text.replace(/[^0-9]/g, "");
-            if (!num || num.length < 2) {
-                status.innerText = "❌ Chiffres illisibles. Réessayez.";
+            // Nettoie pour enlever les espaces inutiles en gardant lettres, chiffres et tirets
+            const codeDetecte = text.trim().replace(/[^a-zA-Z0-9-]/g, "");
+            
+            if (!codeDetecte || codeDetecte.length < 2) {
+                status.innerText = "❌ Lecture difficile. Rapprochez-vous.";
                 return;
             }
-            enregistrerCode(num);
+            enregistrerCode(codeDetecte);
         } catch (e) {
             status.innerText = "Erreur de lecture.";
         }
@@ -340,8 +342,9 @@
 
     function validerChoc() {
         const res = document.getElementById('result');
-        if (codeAffiche === codeEtiquette) {
-            res.innerText = "✅ VALIDE : Les codes sont bons !";
+        // Comparaison insensible à la casse (ex: "a3" correspondra à "A3")
+        if (codeAffiche.toUpperCase() === codeEtiquette.toUpperCase()) {
+            res.innerText = "✅ VALIDE : Les codes correspondent !";
             res.className = "result match";
             vibrate([100, 50, 100]);
         } else {
