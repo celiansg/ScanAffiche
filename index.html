@@ -3,50 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AFLPH | Contrôle Qualité</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Contrôle Qualité AFLPH</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        :root { --magenta: #ff00ff; --success: #2ecc71; --danger: #ff4d4d; }
-        body { font-family: sans-serif; background: #fdf5f9; padding: 10px; display: flex; justify-content: center; }
+        :root { --magenta: #ff00ff; --ok: #2ecc71; --ko: #ff4d4d; }
+        body { font-family: sans-serif; background: #fdf5f9; padding: 20px; display: flex; justify-content: center; }
         .app-container { width: 100%; max-width: 500px; background: white; padding: 20px; border-radius: 20px; border: 2px solid var(--magenta); }
-        .dashboard { display: flex; justify-content: space-around; margin-bottom: 15px; font-weight: bold; background: #eee; padding: 10px; border-radius: 10px; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
-        .status-box { text-align: center; margin: 15px 0; padding: 15px; font-weight: bold; border-radius: 10px; background: #fdf0f9; min-height: 50px; }
+        .kpi { display: flex; justify-content: space-around; background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+        #status { text-align: center; margin: 15px 0; padding: 15px; font-weight: bold; background: #fdf0f9; border-radius: 10px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; background: #333; color: white; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div class="dashboard">
+    <div class="kpi">
         <div>OK: <span id="count-ok">0</span></div>
         <div>KO: <span id="count-ko">0</span></div>
     </div>
 
     <div id="reader"></div>
-    <div id="status" class="status-box">Visez l'AFFICHE</div>
+    <div id="status">Visez l'AFFICHE</div>
 
-    <div style="background:#f9f9f9; padding:10px; border-radius:10px; font-size: 0.9rem;">
+    <div style="background:#f9f9f9; padding:15px; border-radius:10px; font-size: 0.9rem; margin-top: 10px;">
         <p>Affiche : <span id="val-affiche">-</span></p>
         <p>Étiquette : <span id="val-etiquette">-</span></p>
     </div>
 
-    <button class="btn" style="background:#333; color:white;" onclick="exportCSV()">Exporter Rapport (CSV)</button>
-    <button class="btn" style="background:#eee" onclick="resetApp()">Réinitialiser</button>
+    <button class="btn" onclick="resetApp()">Réinitialiser le contrôle</button>
 </div>
 
 <script>
     let state = { affiche: null, etiquette: null, ok: 0, ko: 0 };
     let lastScanTime = 0;
-    const SCAN_DELAY = 1500; // 1.5s pour éviter le double scan accidentel
+    const SCAN_DELAY = 1500; 
 
     function onScanSuccess(text) {
-        const now = Date.now();
-        if (now - lastScanTime < SCAN_DELAY) return;
-        
+        if (Date.now() - lastScanTime < SCAN_DELAY) return;
+        lastScanTime = Date.now();
         const code = text.trim().toUpperCase();
-        lastScanTime = now;
 
         if (!state.affiche) {
             state.affiche = code;
@@ -56,43 +52,30 @@
         } else if (!state.etiquette) {
             state.etiquette = code;
             document.getElementById('val-etiquette').innerText = code;
-            validerControle();
+            valider();
         }
     }
 
-    function validerControle() {
+    function valider() {
         const isMatch = (state.affiche === state.etiquette);
-        
         if (isMatch) {
             state.ok++;
-            document.getElementById('status').innerHTML = "<span style='color:green'>✅ CONFORME</span>";
+            document.getElementById('status').innerHTML = "<span style='color:var(--ok)'>✅ CONFORME</span>";
         } else {
             state.ko++;
-            document.getElementById('status').innerHTML = "<span style='color:red'>❌ ERREUR : CODES DIFFÉRENTS</span>";
+            document.getElementById('status').innerHTML = "<span style='color:var(--ko)'>❌ ERREUR</span>";
         }
-
-        updateKPI();
+        document.getElementById('count-ok').innerText = state.ok;
+        document.getElementById('count-ko').innerText = state.ko;
         vibrate(isMatch ? 100 : [500, 200, 500]);
-        
-        // Reset automatique après 2.5s pour enchaîner
         setTimeout(resetApp, 2500);
     }
 
-    function updateKPI() {
-        document.getElementById('count-ok').innerText = state.ok;
-        document.getElementById('count-ko').innerText = state.ko;
-    }
-
     function resetApp() {
-        state.affiche = null;
-        state.etiquette = null;
+        state.affiche = null; state.etiquette = null;
         document.getElementById('val-affiche').innerText = "-";
         document.getElementById('val-etiquette').innerText = "-";
         document.getElementById('status').innerText = "Visez l'AFFICHE";
-    }
-
-    function exportCSV() {
-        alert("Fonctionnalité d'export prête. En atelier, branchez la tablette pour récupérer le fichier.");
     }
 
     function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
