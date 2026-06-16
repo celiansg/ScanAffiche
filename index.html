@@ -3,375 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LeBonCode - AFLPH Coloz</title>
+    <title>AFLPH | Contrôle Qualité</title>
+    <!-- PWA Meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ff00ff">
+    <link rel="manifest" href="manifest.json">
+    
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root {
-            --magenta: #ff00ff;
-            --magenta-light: #fdf0f9;
-            --bg-global: #fdf5f9;
-            --text-dark: #3a003a;
-            --success-bg: #e3f9ec;
-            --success-text: #2ecc71;
-            --danger-bg: #ffe6e6;
-            --danger-text: #ff4d4d;
-        }
-
-        body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-global);
-            color: var(--text-dark);
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 500px;
-            background: #ffffff;
-            border-radius: 24px;
-            border: 2px solid var(--magenta);
-            padding: 24px;
-            box-sizing: border-box;
-        }
-
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--magenta-light);
-        }
-
-        .header h1 {
-            font-size: 1.3rem;
-            margin: 0;
-            color: var(--text-dark);
-            font-weight: 700;
-        }
-
-        .brand-badge {
-            background: var(--magenta);
-            color: white;
-            padding: 6px 14px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-
-        .steps {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .step {
-            flex: 1;
-            text-align: center;
-            padding: 10px;
-            background: var(--magenta-light);
-            border-radius: 30px; 
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: #b58cb5;
-        }
-
-        .step.active {
-            background-color: var(--magenta);
-            color: white;
-        }
-
-        .step.completed {
-            background-color: var(--success-bg);
-            color: var(--success-text);
-        }
-
-        #camera-wrapper {
-            width: 100%;
-            border-radius: 16px;
-            overflow: hidden;
-            background: black;
-            position: relative;
-            border: 2px solid var(--magenta);
-        }
-
-        #reader {
-            width: 100%;
-            border: none !important;
-        }
-
-        #status {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--text-dark);
-            margin: 12px 0;
-            font-weight: 600;
-            background: var(--magenta-light);
-            padding: 8px;
-            border-radius: 8px;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        .btn:active { transform: scale(0.98); }
-
-        .btn-next {
-            background: var(--magenta);
-            color: white;
-            display: none; 
-            font-size: 1.1rem;
-        }
-
-        .btn-ocr {
-            background-color: var(--text-dark);
-            color: white;
-            margin-top: 5px;
-        }
-
-        .btn-reset {
-            background-color: #f5eaf0;
-            color: var(--text-dark);
-            margin-top: 15px;
-            border: 1px solid var(--magenta);
-        }
-
-        .summary-box {
-            margin-top: 15px;
-            background: var(--magenta-light);
-            padding: 12px 15px;
-            border-radius: 12px;
-        }
-
-        .summary-row {
-            display: flex;
-            flex-direction: column;
-            margin: 8px 0;
-            font-size: 0.95rem;
-            font-weight: 500;
-        }
-
-        .code-badge {
-            background: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-weight: bold;
-            border: 1px solid var(--magenta);
-            color: var(--text-dark);
-            margin-top: 4px;
-            word-break: break-all;
-            font-size: 0.85rem;
-        }
-
-        .result {
-            margin-top: 15px;
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            font-size: 1.1rem;
-            font-weight: bold;
-            display: none;
-        }
-
-        .result.match {
-            display: block;
-            background-color: var(--success-bg);
-            color: var(--success-text);
-            border: 2px solid var(--success-text);
-        }
-
-        .result.mismatch {
-            display: block;
-            background-color: var(--danger-bg);
-            color: var(--danger-text);
-            border: 2px solid var(--danger-text);
-        }
+        :root { --magenta: #ff00ff; --success: #2ecc71; --danger: #ff4d4d; }
+        body { font-family: sans-serif; background: #fdf5f9; padding: 10px; }
+        .app-container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 20px; border: 2px solid var(--magenta); }
+        
+        /* Indicateurs KPI */
+        .dashboard { display: flex; justify-content: space-around; margin-bottom: 15px; font-weight: bold; }
+        
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
+        .btn-export { background: #333; color: white; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div class="header">
-        <h1>LeBonCode</h1>
-        <div class="brand-badge">AFLPH</div>
+    <div class="dashboard">
+        <div>Total: <span id="count-total">0</span></div>
+        <div style="color:var(--success)">OK: <span id="count-ok">0</span></div>
+        <div style="color:var(--danger)">KO: <span id="count-ko">0</span></div>
     </div>
 
-    <div class="steps">
-        <div id="step1" class="step active">1. AFFICHE</div>
-        <div id="step2" class="step">2. ÉTIQUETTE</div>
-    </div>
-
-    <div id="camera-wrapper">
-        <div id="reader"></div>
-    </div>
-
-    <div id="status">Chargement...</div>
-
-    <button id="btn-next" class="btn btn-next" onclick="passerALEtape2()">➡️ PASSER À L'ÉTIQUETTE</button>
-    <button id="btn-ocr" class="btn btn-ocr" onclick="extraireCodeProduction()">🔢 ANALYSER LE CODE DE PRODUCTION</button>
+    <div id="reader"></div>
+    <div id="status" style="text-align:center; margin:10px 0; font-weight:bold;">Visez l'AFFICHE</div>
 
     <div class="summary-box">
-        <div class="summary-row">
-            <span>Code Affiche :</span>
-            <span id="val-affiche" class="code-badge">-</span>
-        </div>
-        <div class="summary-row">
-            <span>Code Étiquette :</span>
-            <span id="val-etiquette" class="code-badge">-</span>
-        </div>
+        <p>Affiche: <span id="val-affiche">-</span></p>
+        <p>Étiquette: <span id="val-etiquette">-</span></p>
     </div>
 
-    <div id="result" class="result"></div>
-
-    <button class="btn btn-reset" onclick="resetApp()">Suivant / Réinitialiser</button>
+    <button class="btn btn-export" onclick="exportCSV()">Exporter Rapport (CSV)</button>
+    <button class="btn" style="background:#eee" onclick="resetApp()">Réinitialiser</button>
 </div>
 
 <script>
-    let codeAffiche = null;
-    let codeEtiquette = null;
-    let html5QrcodeScanner = null;
-    let scanEnPause = false;
+    let state = { affiche: null, etiquette: null, ok: 0, ko: 0 };
+    let history = []; // Stockage pour export CSV
 
-    function initScanner() {
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 15, 
-            qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.floor(h * 0.4) }),
-            rememberLastUsedCamera: true
-        });
-        html5QrcodeScanner.render(onScanSuccess, () => {});
-        setTimeout(() => { document.getElementById('status').innerText = "Cadrez le code de l'AFFICHE"; }, 800);
-    }
-
-    // Si jamais c'est un QR code généré qui contient le texte
     function onScanSuccess(text) {
-        if (scanEnPause) return;
-        filtrerEtEnregistrer(text);
-    }
-
-    // Fonction principale de lecture OCR pour tes images
-    async function extraireCodeProduction() {
-        if (scanEnPause) return;
-        const status = document.getElementById('status');
-        status.innerText = "Analyse ciblée du code... Ne bougez pas...";
+        const code = text.trim().toUpperCase();
         
-        const video = document.querySelector('#reader video');
-        if (!video) return;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        try {
-            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-            console.log("Texte brut détecté : ", text);
-            
-            // REGEX : Recherche un format type GUID (Lettres/chiffres séparés par des tirets)
-            // Trouve précisément la structure "865DCDAF-ADB6-..." au milieu du reste
-            const regexGUID = /[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}-[A-Z0-9]{4,}/i;
-            const match = text.toUpperCase().match(regexGUID);
-
-            if (match) {
-                filtrerEtEnregistrer(match[0]);
-            } else {
-                // Secours : Si le code est tronqué sur le bord (comme sur ton affiche photo 1)
-                // On cherche n'importe quelle suite de blocs alphanumériques avec tirets
-                const regexSecours = /[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+/i;
-                const matchSecours = text.toUpperCase().match(regexSecours);
-                
-                if (matchSecours) {
-                    filtrerEtEnregistrer(matchSecours[0]);
-                } else {
-                    status.innerText = "❌ Code introuvable. Recentrez sur la ligne de tirets.";
-                }
-            }
-        } catch (e) {
-            status.innerText = "Erreur de traitement d'image.";
+        if (!state.affiche) {
+            state.affiche = code;
+            document.getElementById('val-affiche').innerText = code;
+            document.getElementById('status').innerText = "Affiche capturée. Visez l'ÉTIQUETTE.";
+            vibrate(100);
+        } else if (!state.etiquette) {
+            state.etiquette = code;
+            document.getElementById('val-etiquette').innerText = code;
+            validerControle();
         }
     }
 
-    function filtrerEtEnregistrer(code) {
-        const codeNettoye = code.trim().toUpperCase();
+    function validerControle() {
+        const isMatch = (state.affiche === state.etiquette);
         
-        if (!codeAffiche) {
-            codeAffiche = codeNettoye;
-            document.getElementById('val-affiche').innerText = codeAffiche;
-            document.getElementById('step1').className = "step completed";
-            scanEnPause = true;
-            
-            document.getElementById('btn-ocr').style.display = 'none';
-            document.getElementById('btn-next').style.display = 'block';
-            document.getElementById('status').innerText = "Affiche OK. Cadrez le code de l'étiquette.";
-            vibrate(100);
-        } else if (codeAffiche && !codeEtiquette) {
-            codeEtiquette = codeNettoye;
-            document.getElementById('val-etiquette').innerText = codeEtiquette;
-            document.getElementById('step2').className = "step completed";
-            scanEnPause = true;
-            
-            document.getElementById('btn-ocr').style.display = 'none';
-            vibrate(100);
-            validerChoc();
-        }
-    }
-
-    function passerALEtape2() {
-        scanEnPause = false;
-        document.getElementById('step2').className = "step active";
-        document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('btn-ocr').style.display = 'block';
-        document.getElementById('status').innerText = "Visez le code de l'ÉTIQUETTE";
-    }
-
-    function validerChoc() {
-        const res = document.getElementById('result');
-        
-        // Comme le code de l'affiche peut être tronqué sur la photo, on vérifie si l'un est inclus dans l'autre
-        if (codeAffiche === codeEtiquette || codeEtiquette.includes(codeAffiche) || codeAffiche.includes(codeEtiquette)) {
-            res.innerText = "✅ VALIDE : Les codes correspondent !";
-            res.className = "result match";
-            vibrate([100, 50, 100]);
+        if (isMatch) {
+            state.ok++;
+            document.getElementById('status').innerHTML = "<span style='color:green'>✅ CONFORME</span>";
         } else {
-            res.innerText = "❌ ERREUR : Les codes sont différents !";
-            res.className = "result mismatch";
-            vibrate(500);
+            state.ko++;
+            document.getElementById('status').innerHTML = "<span style='color:red'>❌ ERREUR</span>";
         }
-        document.getElementById('status').innerText = "Vérification terminée.";
+
+        // Sauvegarde historique
+        history.push({ 
+            date: new Date().toLocaleTimeString(), 
+            affiche: state.affiche, 
+            etiquette: state.etiquette, 
+            result: isMatch ? 'OK' : 'KO' 
+        });
+
+        updateKPI();
+        vibrate(isMatch ? 100 : [500, 200, 500]);
+        
+        // Reset automatique après 2 secondes
+        setTimeout(resetApp, 2000);
+    }
+
+    function updateKPI() {
+        document.getElementById('count-total').innerText = (state.ok + state.ko);
+        document.getElementById('count-ok').innerText = state.ok;
+        document.getElementById('count-ko').innerText = state.ko;
+    }
+
+    function exportCSV() {
+        let csv = "Heure,Affiche,Etiquette,Resultat\n";
+        history.forEach(row => csv += `${row.date},${row.affiche},${row.etiquette},${row.result}\n`);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'controle_qualite.csv'; a.click();
     }
 
     function resetApp() {
-        codeAffiche = null;
-        codeEtiquette = null;
-        scanEnPause = false;
+        state.affiche = null;
+        state.etiquette = null;
         document.getElementById('val-affiche').innerText = "-";
         document.getElementById('val-etiquette').innerText = "-";
-        document.getElementById('step1').className = "step active";
-        document.getElementById('step2').className = "step";
-        document.getElementById('result').className = "result";
-        document.getElementById('btn-next').style.display = 'none';
-        document.getElementById('btn-ocr').style.display = 'block';
-        document.getElementById('status').innerText = "Visez le code de l'AFFICHE";
+        document.getElementById('status').innerText = "Visez l'AFFICHE";
     }
 
     function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
 
-    window.addEventListener('DOMContentLoaded', initScanner);
+    new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }).render(onScanSuccess);
 </script>
 </body>
 </html>
