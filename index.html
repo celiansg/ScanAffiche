@@ -1,86 +1,194 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contrôle Qualité AFLPH</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        :root { --magenta: #ff00ff; --ok: #2ecc71; --ko: #ff4d4d; }
-        body { font-family: sans-serif; background: #fdf5f9; padding: 20px; display: flex; justify-content: center; }
-        .app-container { width: 100%; max-width: 500px; background: white; padding: 20px; border-radius: 20px; border: 2px solid var(--magenta); }
-        .kpi { display: flex; justify-content: space-around; background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; }
-        #status { text-align: center; margin: 15px 0; padding: 15px; font-weight: bold; background: #fdf0f9; border-radius: 10px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; background: #333; color: white; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Contrôle Qualité AFLPH</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+:root{
+    --magenta:#ff00ff;
+    --ok:#2ecc71;
+    --ko:#ff4d4d;
+    --bg:#fdf5f9;
+}
+
+body{
+    font-family:sans-serif;
+    background:var(--bg);
+    margin:0;
+    display:flex;
+    justify-content:center;
+    padding:20px;
+}
+
+.app{
+    width:100%;
+    max-width:520px;
+    background:white;
+    border-radius:20px;
+    border:2px solid var(--magenta);
+    padding:20px;
+}
+
+.kpi{
+    display:flex;
+    justify-content:space-around;
+    font-weight:bold;
+    margin-bottom:15px;
+}
+
+.kpi span{
+    font-size:18px;
+}
+
+#reader{
+    border-radius:12px;
+    overflow:hidden;
+}
+
+#status{
+    margin:15px 0;
+    padding:12px;
+    text-align:center;
+    font-weight:bold;
+    border-radius:10px;
+    background:#f3e6f5;
+}
+
+.box{
+    background:#fafafa;
+    padding:12px;
+    border-radius:10px;
+    font-size:14px;
+    margin-bottom:10px;
+}
+
+.btn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:10px;
+    background:#333;
+    color:white;
+    font-weight:bold;
+    margin-top:10px;
+}
+</style>
 </head>
+
 <body>
 
-<div class="app-container">
-    <div class="kpi">
-        <div>OK: <span id="count-ok">0</span></div>
-        <div>KO: <span id="count-ko">0</span></div>
-    </div>
+<div class="app">
 
-    <div id="reader"></div>
-    <div id="status">Visez l'AFFICHE</div>
+<div class="kpi">
+    <div>✔ OK: <span id="ok">0</span></div>
+    <div>✖ KO: <span id="ko">0</span></div>
+</div>
 
-    <div style="background:#f9f9f9; padding:15px; border-radius:10px; font-size: 0.9rem; margin-top: 10px;">
-        <p>Affiche : <span id="val-affiche">-</span></p>
-        <p>Étiquette : <span id="val-etiquette">-</span></p>
-    </div>
+<div id="reader"></div>
 
-    <button class="btn" onclick="resetApp()">Réinitialiser le contrôle</button>
+<div id="status">Visez l’AFFICHE</div>
+
+<div class="box">
+    <div>Affiche : <b id="affiche">-</b></div>
+    <div>Étiquette : <b id="etiquette">-</b></div>
+</div>
+
+<button class="btn" onclick="resetCycle()">Nouveau contrôle</button>
+
 </div>
 
 <script>
-    let state = { affiche: null, etiquette: null, ok: 0, ko: 0 };
-    let lastScanTime = 0;
-    const SCAN_DELAY = 1500; 
+let state = {
+    step: "AFFICHE",
+    affiche: null,
+    etiquette: null,
+    ok: parseInt(localStorage.getItem("ok")||0),
+    ko: parseInt(localStorage.getItem("ko")||0)
+};
 
-    function onScanSuccess(text) {
-        if (Date.now() - lastScanTime < SCAN_DELAY) return;
-        lastScanTime = Date.now();
-        const code = text.trim().toUpperCase();
+let lastScan = 0;
+const COOLDOWN = 1500;
 
-        if (!state.affiche) {
-            state.affiche = code;
-            document.getElementById('val-affiche').innerText = code;
-            document.getElementById('status').innerText = "AFFICHE OK. Visez l'ÉTIQUETTE.";
-            vibrate(100);
-        } else if (!state.etiquette) {
-            state.etiquette = code;
-            document.getElementById('val-etiquette').innerText = code;
-            valider();
-        }
+document.getElementById("ok").innerText = state.ok;
+document.getElementById("ko").innerText = state.ko;
+
+function onScanSuccess(text){
+
+    if(Date.now() - lastScan < COOLDOWN) return;
+    lastScan = Date.now();
+
+    const code = text.trim().toUpperCase();
+
+    if(state.step === "AFFICHE"){
+
+        state.affiche = code;
+        state.step = "ETIQUETTE";
+
+        document.getElementById("affiche").innerText = code;
+        document.getElementById("status").innerText = "AFFICHE OK → scanne l’étiquette";
+
+        vibrate(80);
+        return;
     }
 
-    function valider() {
-        const isMatch = (state.affiche === state.etiquette);
-        if (isMatch) {
-            state.ok++;
-            document.getElementById('status').innerHTML = "<span style='color:var(--ok)'>✅ CONFORME</span>";
-        } else {
-            state.ko++;
-            document.getElementById('status').innerHTML = "<span style='color:var(--ko)'>❌ ERREUR</span>";
-        }
-        document.getElementById('count-ok').innerText = state.ok;
-        document.getElementById('count-ko').innerText = state.ko;
-        vibrate(isMatch ? 100 : [500, 200, 500]);
-        setTimeout(resetApp, 2500);
+    if(state.step === "ETIQUETTE"){
+
+        state.etiquette = code;
+        document.getElementById("etiquette").innerText = code;
+
+        validate();
+    }
+}
+
+function validate(){
+
+    const ok = state.affiche === state.etiquette;
+
+    if(ok){
+        state.ok++;
+        document.getElementById("status").innerHTML =
+            "🟢 CONFORME";
+    }else{
+        state.ko++;
+        document.getElementById("status").innerHTML =
+            "🔴 ERREUR DE CORRESPONDANCE";
     }
 
-    function resetApp() {
-        state.affiche = null; state.etiquette = null;
-        document.getElementById('val-affiche').innerText = "-";
-        document.getElementById('val-etiquette').innerText = "-";
-        document.getElementById('status').innerText = "Visez l'AFFICHE";
-    }
+    localStorage.setItem("ok", state.ok);
+    localStorage.setItem("ko", state.ko);
 
-    function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
+    document.getElementById("ok").innerText = state.ok;
+    document.getElementById("ko").innerText = state.ko;
 
-    new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }).render(onScanSuccess);
+    vibrate(ok ? 120 : [400,200,400]);
+
+    setTimeout(resetCycle, 2000);
+}
+
+function resetCycle(){
+    state.step = "AFFICHE";
+    state.affiche = null;
+    state.etiquette = null;
+
+    document.getElementById("affiche").innerText = "-";
+    document.getElementById("etiquette").innerText = "-";
+    document.getElementById("status").innerText = "Visez l’AFFICHE";
+}
+
+function vibrate(p){
+    if(navigator.vibrate) navigator.vibrate(p);
+}
+
+new Html5QrcodeScanner(
+    "reader",
+    { fps: 10, qrbox: 250 }
+).render(onScanSuccess);
+
 </script>
+
 </body>
 </html>
