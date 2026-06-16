@@ -4,24 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AFLPH | Contrôle Qualité</title>
-    <!-- PWA Meta tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#ff00ff">
-    <link rel="manifest" href="manifest.json">
-    
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --magenta: #ff00ff; --success: #2ecc71; --danger: #ff4d4d; }
         body { font-family: sans-serif; background: #fdf5f9; padding: 10px; }
         .app-container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 20px; border: 2px solid var(--magenta); }
-        
-        /* Indicateurs KPI */
         .dashboard { display: flex; justify-content: space-around; margin-bottom: 15px; font-weight: bold; }
-        
         #reader { width: 100%; border-radius: 12px; overflow: hidden; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; margin-top: 10px; font-weight: bold; cursor: pointer; }
-        .btn-export { background: #333; color: white; }
     </style>
 </head>
 <body>
@@ -34,30 +24,40 @@
     </div>
 
     <div id="reader"></div>
-    <div id="status" style="text-align:center; margin:10px 0; font-weight:bold;">Visez l'AFFICHE</div>
+    <div id="status" style="text-align:center; margin:10px 0; font-weight:bold; height: 20px;">Visez l'AFFICHE</div>
 
     <div class="summary-box">
         <p>Affiche: <span id="val-affiche">-</span></p>
         <p>Étiquette: <span id="val-etiquette">-</span></p>
     </div>
 
-    <button class="btn btn-export" onclick="exportCSV()">Exporter Rapport (CSV)</button>
-    <button class="btn" style="background:#eee" onclick="resetApp()">Réinitialiser</button>
+    <button class="btn" style="background:#eee" onclick="resetApp()">Réinitialiser le scan</button>
 </div>
 
 <script>
     let state = { affiche: null, etiquette: null, ok: 0, ko: 0 };
-    let history = []; // Stockage pour export CSV
+    let lastScanTime = 0; // Pour éviter la double lecture
+    const SCAN_DELAY = 2000; // 2 secondes de pause obligatoire entre deux scans
 
     function onScanSuccess(text) {
+        const now = Date.now();
+        // Ignore si le scan est trop rapide (moins de 2s après le dernier)
+        if (now - lastScanTime < SCAN_DELAY) return;
+
         const code = text.trim().toUpperCase();
-        
+        lastScanTime = now;
+
         if (!state.affiche) {
             state.affiche = code;
             document.getElementById('val-affiche').innerText = code;
             document.getElementById('status').innerText = "Affiche capturée. Visez l'ÉTIQUETTE.";
             vibrate(100);
         } else if (!state.etiquette) {
+            // Empêche de scanner deux fois le même code si l'utilisateur est maladroit
+            if (code === state.affiche) {
+                document.getElementById('status').innerText = "⚠️ Scannez l'ÉTIQUETTE, pas l'affiche !";
+                return;
+            }
             state.etiquette = code;
             document.getElementById('val-etiquette').innerText = code;
             validerControle();
@@ -75,34 +75,17 @@
             document.getElementById('status').innerHTML = "<span style='color:red'>❌ ERREUR</span>";
         }
 
-        // Sauvegarde historique
-        history.push({ 
-            date: new Date().toLocaleTimeString(), 
-            affiche: state.affiche, 
-            etiquette: state.etiquette, 
-            result: isMatch ? 'OK' : 'KO' 
-        });
-
         updateKPI();
         vibrate(isMatch ? 100 : [500, 200, 500]);
         
-        // Reset automatique après 2 secondes
-        setTimeout(resetApp, 2000);
+        // Délai de 3 secondes avant de vider pour laisser l'opérateur voir le résultat
+        setTimeout(resetApp, 3000);
     }
 
     function updateKPI() {
         document.getElementById('count-total').innerText = (state.ok + state.ko);
         document.getElementById('count-ok').innerText = state.ok;
         document.getElementById('count-ko').innerText = state.ko;
-    }
-
-    function exportCSV() {
-        let csv = "Heure,Affiche,Etiquette,Resultat\n";
-        history.forEach(row => csv += `${row.date},${row.affiche},${row.etiquette},${row.result}\n`);
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'controle_qualite.csv'; a.click();
     }
 
     function resetApp() {
@@ -115,6 +98,7 @@
 
     function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
 
+    // Initialisation
     new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }).render(onScanSuccess);
 </script>
 </body>
