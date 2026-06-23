@@ -1,39 +1,101 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Contrôle Qualité AFLPH</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        :root { --bg: #fdf5f9; --magenta: #ff00ff; --ok: #2ecc71; --ko: #ff4d4d; }
-        body { font-family: sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
-        
-        .app { 
-            width: 100%; max-width: 520px; background: white; border-radius: 20px; 
-            padding: 20px; transition: border 0.3s ease; border: 4px solid var(--magenta);
-        }
-        
-        /* Feedback visuel global */
-        .status-ok { border-color: var(--ok) !important; }
-        .status-ko { border-color: var(--ko) !important; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Contrôle Qualité AFLPH</title>
 
-        .kpi { display: flex; justify-content: space-around; font-weight: bold; margin-bottom: 15px; }
-        #reader { border-radius: 12px; overflow: hidden; margin-bottom: 15px; }
-        #status { margin: 15px 0; padding: 15px; text-align: center; font-weight: bold; border-radius: 10px; background: #eee; transition: 0.3s; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; background: #333; color: white; font-weight: bold; cursor: pointer; }
-        .hidden { display: none; }
-    </style>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+    :root{
+        --magenta:#ff00ff;
+        --ok:#2ecc71;
+        --ko:#ff4d4d;
+        --bg:#fdf5f9;
+    }
+
+    body{
+        font-family:sans-serif;
+        background:var(--bg);
+        margin:0;
+        display:flex;
+        justify-content:center;
+        padding:20px;
+    }
+
+    .app{
+        width:100%;
+        max-width:520px;
+        background:white;
+        border-radius:20px;
+        border:4px solid var(--magenta);
+        padding:20px;
+        transition: border-color 0.3s ease; /* Fluidité du changement */
+    }
+
+    /* Classes d'état pour le contour */
+    .border-ok { border-color: var(--ok) !important; }
+    .border-ko { border-color: var(--ko) !important; }
+
+    .kpi{
+        display:flex;
+        justify-content:space-around;
+        font-weight:bold;
+        margin-bottom:15px;
+    }
+
+    .kpi span{
+        font-size:18px;
+    }
+
+    #reader{
+        border-radius:12px;
+        overflow:hidden;
+    }
+
+    #status{
+        margin:15px 0;
+        padding:12px;
+        text-align:center;
+        font-weight:bold;
+        border-radius:10px;
+        background:#f3e6f5;
+    }
+
+    .box{
+        background:#fafafa;
+        padding:12px;
+        border-radius:10px;
+        font-size:14px;
+        margin-bottom:10px;
+    }
+
+    .btn{
+        width:100%;
+        padding:14px;
+        border:none;
+        border-radius:10px;
+        background:#333;
+        color:white;
+        font-weight:bold;
+        margin-top:10px;
+        cursor: pointer;
+    }
+</style>
 </head>
+
 <body>
 
 <div class="app" id="appContainer">
+
     <div class="kpi">
         <div>✔ OK: <span id="ok">0</span></div>
         <div>✖ KO: <span id="ko">0</span></div>
     </div>
 
     <div id="reader"></div>
+
     <div id="status">Visez l’AFFICHE</div>
 
     <div class="box">
@@ -41,69 +103,93 @@
         <div>Étiquette : <b id="etiquette">-</b></div>
     </div>
 
-    <button id="resetBtn" class="btn hidden" onclick="resetCycle()">Nouveau contrôle</button>
+    <button class="btn" onclick="resetCycle()">Nouveau contrôle</button>
+
 </div>
 
 <script>
-    let state = { step: "AFFICHE", affiche: null, ok: parseInt(localStorage.getItem("ok")||0), ko: parseInt(localStorage.getItem("ko")||0) };
+    let state = {
+        step: "AFFICHE",
+        affiche: null,
+        etiquette: null,
+        ok: parseInt(localStorage.getItem("ok")||0),
+        ko: parseInt(localStorage.getItem("ko")||0)
+    };
+
     let lastScan = 0;
     const COOLDOWN = 1500;
+    const appContainer = document.getElementById("appContainer");
 
-    function updateDisplay() {
-        document.getElementById("ok").innerText = state.ok;
-        document.getElementById("ko").innerText = state.ko;
-    }
+    document.getElementById("ok").innerText = state.ok;
+    document.getElementById("ko").innerText = state.ko;
 
-    function onScanSuccess(text) {
+    function onScanSuccess(text){
         if(Date.now() - lastScan < COOLDOWN) return;
         lastScan = Date.now();
+
         const code = text.trim().toUpperCase();
 
-        if(state.step === "AFFICHE") {
+        if(state.step === "AFFICHE"){
             state.affiche = code;
             state.step = "ETIQUETTE";
             document.getElementById("affiche").innerText = code;
-            document.getElementById("status").innerText = "Scan de l'ÉTIQUETTE attendu...";
-        } else {
-            validate(code);
+            document.getElementById("status").innerText = "AFFICHE OK → scanne l’étiquette";
+            vibrate(80);
+            return;
+        }
+
+        if(state.step === "ETIQUETTE"){
+            state.etiquette = code;
+            document.getElementById("etiquette").innerText = code;
+            validate();
         }
     }
 
-    function validate(etiquette) {
-        const ok = (state.affiche === etiquette);
-        const appContainer = document.getElementById("appContainer");
-        
-        document.getElementById("etiquette").innerText = etiquette;
-        
-        if(ok) {
+    function validate(){
+        const ok = state.affiche === state.etiquette;
+
+        if(ok){
             state.ok++;
-            document.getElementById("status").innerText = "✅ CONFORME";
-            appContainer.className = "app status-ok";
+            document.getElementById("status").innerHTML = "🟢 CONFORME";
+            appContainer.classList.add("border-ok");
         } else {
             state.ko++;
-            document.getElementById("status").innerText = "❌ ERREUR CORRESPONDANCE";
-            appContainer.className = "app status-ko";
+            document.getElementById("status").innerHTML = "🔴 ERREUR DE CORRESPONDANCE";
+            appContainer.classList.add("border-ko");
         }
 
-        updateDisplay();
         localStorage.setItem("ok", state.ok);
         localStorage.setItem("ko", state.ko);
-        
-        document.getElementById("resetBtn").classList.remove("hidden");
-        if(navigator.vibrate) navigator.vibrate(ok ? 200 : [500, 200, 500]);
+
+        document.getElementById("ok").innerText = state.ok;
+        document.getElementById("ko").innerText = state.ko;
+
+        vibrate(ok ? 120 : [400,200,400]);
+
+        setTimeout(() => {
+            appContainer.classList.remove("border-ok", "border-ko");
+            resetCycle();
+        }, 2000);
     }
 
-    function resetCycle() {
+    function resetCycle(){
         state.step = "AFFICHE";
-        document.getElementById("appContainer").className = "app";
-        document.getElementById("status").innerText = "Visez l’AFFICHE";
+        state.affiche = null;
+        state.etiquette = null;
         document.getElementById("affiche").innerText = "-";
         document.getElementById("etiquette").innerText = "-";
-        document.getElementById("resetBtn").classList.add("hidden");
+        document.getElementById("status").innerText = "Visez l’AFFICHE";
     }
 
-    updateDisplay();
-    new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }).render(onScanSuccess);
+    function vibrate(p){
+        if(navigator.vibrate) navigator.vibrate(p);
+    }
+
+    new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: 250 }
+    ).render(onScanSuccess);
+
 </script>
 
 </body>
