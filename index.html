@@ -29,14 +29,14 @@
         max-width:520px;
         background:white;
         border-radius:20px;
-        border:4px solid var(--magenta);
+        border:2px solid var(--magenta);
         padding:20px;
-        transition: border-color 0.3s ease; /* Fluidité du changement */
+        transition: background-color 0.3s ease; /* Transition sur le fond */
     }
 
-    /* Classes d'état pour le contour */
-    .border-ok { border-color: var(--ok) !important; }
-    .border-ko { border-color: var(--ko) !important; }
+    /* Classes d'état pour le fond */
+    .bg-ok { background-color: #d4edda !important; } /* Vert pâle */
+    .bg-ko { background-color: #f8d7da !important; } /* Rouge pâle */
 
     .kpi{
         display:flex;
@@ -45,14 +45,9 @@
         margin-bottom:15px;
     }
 
-    .kpi span{
-        font-size:18px;
-    }
+    .kpi span{ font-size:18px; }
 
-    #reader{
-        border-radius:12px;
-        overflow:hidden;
-    }
+    #reader{ border-radius:12px; overflow:hidden; }
 
     #status{
         margin:15px 0;
@@ -60,7 +55,7 @@
         text-align:center;
         font-weight:bold;
         border-radius:10px;
-        background:#f3e6f5;
+        background:#eee;
     }
 
     .box{
@@ -151,11 +146,11 @@
         if(ok){
             state.ok++;
             document.getElementById("status").innerHTML = "🟢 CONFORME";
-            appContainer.classList.add("border-ok");
+            appContainer.classList.add("bg-ok");
         } else {
             state.ko++;
             document.getElementById("status").innerHTML = "🔴 ERREUR DE CORRESPONDANCE";
-            appContainer.classList.add("border-ko");
+            appContainer.classList.add("bg-ko");
         }
 
         localStorage.setItem("ok", state.ok);
@@ -167,7 +162,7 @@
         vibrate(ok ? 120 : [400,200,400]);
 
         setTimeout(() => {
-            appContainer.classList.remove("border-ok", "border-ko");
+            appContainer.classList.remove("bg-ok", "bg-ko");
             resetCycle();
         }, 2000);
     }
